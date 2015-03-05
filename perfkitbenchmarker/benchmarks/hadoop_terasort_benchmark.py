@@ -26,6 +26,7 @@ import os.path
 import time
 
 from perfkitbenchmarker import data
+from perfkitbenchmarker import errors
 from perfkitbenchmarker import flags
 from perfkitbenchmarker import sample
 from perfkitbenchmarker import vm_util
@@ -38,7 +39,7 @@ FLAGS = flags.FLAGS
 BENCHMARK_INFO = {'name': 'hadoop_terasort',
                   'description': 'Runs Terasort',
                   'scratch_disk': True,
-                  'num_machines': 9}
+                  'num_machines': None}  # Set in GetInfo
 
 HADOOP_VERSION = '2.5.2'
 HADOOP_URL = ('http://apache.mirrors.tds.net/hadoop/common/hadoop-%s/'
@@ -48,9 +49,15 @@ DATA_FILES = ['core-site.xml.j2', 'yarn-site.xml.j2', 'hdfs-site.xml',
               'mapred-site.xml', 'hadoop-env.sh', 'slaves.j2']
 NUM_BYTES_PER_ROW = 100
 
+# Default cluster size when --num_vms is not given.
+DEFAULT_CLUSTER_SIZE = 9
+
 
 def GetInfo():
-  return BENCHMARK_INFO
+  info = BENCHMARK_INFO.copy()
+  if FLAGS.num_vms == 1:
+    info['num_machines'] = DEFAULT_CLUSTER_SIZE
+  return info
 
 
 def CheckPrerequisites():
@@ -72,7 +79,7 @@ def InstallHadoop(vm, master_ip, worker_ips):
 
   Args:
     vm: The BaseVirtualMachine object representing the VM on which to install
-        hadoop.
+        Hadoop.
     master_ip: A string of the master VM's ip.
     worker_ips: A list of all slave ips.
   """
@@ -121,6 +128,9 @@ def Prepare(benchmark_spec):
         required to run the benchmark.
   """
   vms = benchmark_spec.vms
+
+  if len(vms) < 4:
+    logging.warn('hadoop_terasort may fail with < 4 VMs (have: %d)', len(vms))
 
   master = vms[0]
   slaves = vms[1:]
