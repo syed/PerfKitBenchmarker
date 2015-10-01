@@ -13,8 +13,9 @@
 # limitations under the License.
 """Cloudstack utils"""
 
-import csapi
+import logging
 import os
+from csapi import API
 from perfkitbenchmarker import flags
 
 flags.DEFINE_string('CS_API_URL',
@@ -26,7 +27,7 @@ flags.DEFINE_string('CS_API_KEY',
                     'Key for API authentication')
 
 flags.DEFINE_string('CS_API_SECRET',
-                    os.environ.get('CS_API_KEY'),
+                    os.environ.get('CS_API_SECRET'),
                     'Secret for API authentication')
 
 FLAGS = flags.FLAGS
@@ -34,17 +35,145 @@ FLAGS = flags.FLAGS
 
 class CsClient(object):
 
-    def __init__(self, url, api_key, secret, project=None):
+    def __init__(self, url, api_key, secret):
 
-        self.cs = csapi.API(api_key, secret, url)
+        self._cs = API(
+            api_key,
+            secret,
+            url,
+            logging=True,
+            log="/home/syed/csapi.log"
+        )
 
-        self.project_id = None
-        if project:
-            self.project_id = self._get_project_id(project)
+    def get_zone_id(self, zone_name):
 
-    def _get_project_id(self, project_name):
+        cs_args = {
+            'command': 'listZones'
+        }
+
+        zones = self._cs.request(cs_args)
+        for zone in zones['zone']:
+            if zone['name'] == zone_name:
+                return zone['id']
+
+        raise CloudstackNotFoundError()
+
+    def get_template_id(self, template_name, project_id=None):
+
+        cs_args = {
+            'command': 'listTemplates',
+            'templatefilter': 'executable'
+        }
+
+        if project_id:
+            cs_args.update({'projectid': project_id})
+
+
+        templates = self._cs.request(cs_args)
+        for temp in templates['template']:
+            if temp['name'] == template_name:
+                return temp['id']
+
+        raise CloudstackNotFoundError()
+
+    def get_serviceoffering_id(self, service_offering_name):
+
+        cs_args = {
+            'command': 'listServiceOfferings',
+        }
+
+        service_offerings = self._cs.request(cs_args)
+
+        for servo in service_offerings['serviceoffering']:
+            if servo['name'] == service_offering_name:
+                return servo['id']
+
+        raise CloudstackNotFoundError()
+
+
+    def get_project_id(self, project_name):
+
         cs_args = {
             'command': 'listProjects'
         }
 
-        self.project_id = self.cs.request(cs_args)
+        projects = self._cs.request(cs_args)
+
+        if projects and 'project' in projects:
+            for proj in projects['project']:
+                if proj['name'] == project_name:
+                    return proj['id']
+
+        logging.warn("Project %s not found, \
+                     continuing without project" % project_name)
+
+        return None
+
+    def get_network_id(self, network_name, project_id=None, vpc_id=None):
+
+        cs_args = {
+            'command': 'listNetworks',
+        }
+
+        if project_id:
+            cs_args.update({"projectid": project_id})
+
+        if vpc_id:
+            cs_args.update({"vpcid": vpc_id})
+
+        networks = self._cs.request(cs_args)
+
+        for network in networks['network']:
+            print network['name']
+            if network['name'] == network_name:
+                return network['id']
+
+        raise CloudstackNotFoundError()
+
+    def get_vpc_id(self, vpc_name, project_id=None):
+
+        cs_args = {
+            'command': 'listVPCs',
+        }
+
+        if project_id:
+            cs_args.update({"projectid": project_id})
+
+
+        vpcs = self._cs.request(cs_args)
+
+        for vpc in vpcs['vpc']:
+            if vpc['name'] == vpc_name:
+                return vpc['id']
+
+        raise CloudstackNotFoundError()
+
+    def create_vm(self,
+                  name,
+                  zone_id,
+                  service_offering_id,
+                  template_id,
+                  network_ids=None,
+                  project_id=None):
+
+        create_vm_args = {
+            'command': 'deployVirtualMachine',
+            'serviceofferingid': service_offering_id,
+            'templateid': template_id,
+            'zoneid': zone_id,
+            'name': name
+        }
+
+        if network_ids:
+            create_vm_args.update({"networkids": network_ids})
+
+        if project_id:
+            create_vm_args.update({"projectid": project_id})
+
+        res = self._cs.request(create_vm_args)
+
+        return res
+
+
+class CloudstackNotFoundError(Exception):
+    pass
