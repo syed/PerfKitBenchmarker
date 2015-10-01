@@ -21,11 +21,11 @@ flags.DEFINE_string('CS_API_URL',
                     'http://127.0.0.1:8080/client/api',
                     'API endpoint for Cloudstack.')
 
-flags.DEFINE_string('CS_API_KEY', 
-                    os.environ.get('CS_API_KEY'), 
+flags.DEFINE_string('CS_API_KEY',
+                    os.environ.get('CS_API_KEY'),
                     'Key for API authentication')
 
-flags.DEFINE_string('CS_API_SECRET', 
+flags.DEFINE_string('CS_API_SECRET',
                     os.environ.get('CS_API_KEY'),
                     'Secret for API authentication')
 
@@ -35,7 +35,8 @@ FLAGS = flags.FLAGS
 class CsClient(object):
 
     def __init__(self, url, api_key, secret, project=None):
-        # self.cs = csapi.API(api_key, secret, url)
+
+        self.cs = csapi.API(api_key, secret, url)
 
         self.project_id = None
         if project:
