@@ -56,7 +56,7 @@ class CsClient(object):
             if zone['name'] == zone_name:
                 return zone['id']
 
-        raise CloudstackNotFoundError()
+        return None
 
     def get_template_id(self, template_name, project_id=None):
 
@@ -74,7 +74,7 @@ class CsClient(object):
             if temp['name'] == template_name:
                 return temp['id']
 
-        raise CloudstackNotFoundError()
+        return None
 
     def get_serviceoffering_id(self, service_offering_name):
 
@@ -88,7 +88,7 @@ class CsClient(object):
             if servo['name'] == service_offering_name:
                 return servo['id']
 
-        raise CloudstackNotFoundError()
+        return None
 
 
     def get_project_id(self, project_name):
@@ -128,7 +128,7 @@ class CsClient(object):
             if network['name'] == network_name:
                 return network['id']
 
-        raise CloudstackNotFoundError()
+        return None
 
     def get_vpc_id(self, vpc_name, project_id=None):
 
@@ -146,7 +146,27 @@ class CsClient(object):
             if vpc['name'] == vpc_name:
                 return vpc['id']
 
-        raise CloudstackNotFoundError()
+        return None
+
+    def get_virtual_machine_id(self, vm_name, project_id=None):
+
+        cs_args = {
+            'command': 'listVirtualMachines',
+        }
+
+        if project_id:
+            cs_args.update({"projectid": project_id})
+
+        vms = self._cs.request(cs_args)
+
+        for vm in vms['virtualmachine']:
+            if vm['name'] == vm_name:
+                return vm['id']
+
+        return None
+
+
+        pass
 
     def create_vm(self,
                   name,
@@ -174,6 +194,12 @@ class CsClient(object):
 
         return res
 
+    def delete_vm(self, vm_id):
 
-class CloudstackNotFoundError(Exception):
-    pass
+        cs_args = {
+            'command': 'destroyVirtualMachine',
+            'id': vm_id
+        }
+
+        res = self._cs.request(cs_args)
+        return res

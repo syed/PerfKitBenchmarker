@@ -56,6 +56,8 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
         FLAGS.CS_API_SECRET
     )
 
+    project_id = self.cs.get_project_id("cloudops-Engineering")
+    self.project_id = project_id
 
 
   @classmethod
@@ -71,6 +73,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
   def _CreateDependencies(self):
     """Create VM dependencies."""
     # TODO: Create a public ip for the VM
+    # Create an ssh keypair
     print "Create deps\n"
     pass
 
@@ -78,27 +81,28 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     """Delete VM dependencies."""
     print "Delete deps\n"
     # TODO: Remove the keypair
+    # Remove the IP
+
     pass
 
   def _Create(self):
-    """Create a GCE VM instance."""
+    """Create a Cloudstack VM instance."""
     # TODO: Create VM
 
     print "-" * 30
     print "CREATE VM\n"
 
-    project_id = self.cs.get_project_id("cloudops-Engineering")
     zone_id = self.cs.get_zone_id("QC-1")
     service_offering_id = self.cs.get_serviceoffering_id("1vCPU.1GB")
     template_id = self.cs.get_template_id(
         "Ubuntu 14.04.2 HVM base (64bit)",
-        project_id
+        self.project_id
     )
-    vpc_id = self.cs.get_vpc_id("syed-vpc", project_id)
+    vpc_id = self.cs.get_vpc_id("syed-vpc", self.project_id)
 
     network_id = self.cs.get_network_id(
         "tier1",
-        project_id,
+        self.project_id,
         vpc_id
     )
 
@@ -109,10 +113,9 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
         service_offering_id,
         template_id,
         [network_id],
-        project_id
+        self.project_id
     )
 
-    # TODO: get corret id
     self.id = self._vm['virtualmachine']['id']
 
     # TODO: Raise retryable excception if not able to create
@@ -120,6 +123,9 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
   @vm_util.Retry()
   def _PostCreate(self):
     """Get the instance's data."""
+    print "-" * 30
+    print "POST CREATE VM\n"
+
 
     # assosiate the public ip created with the VMid
     network_interface = self._vm['virtualmachine']['nic'][0]
@@ -129,11 +135,17 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
   def _Delete(self):
     """Delete the VM instance."""
     # TODO: Delete the VM
-    pass
+    self.cs.delete_vm(self.id)
 
   def _Exists(self):
     """Returns true if the VM exists."""
     # TODO: Check if VM exisits
+
+    vm_id = self.cs.get_virtual_machine_id(self.name, self.project_id)
+    if vm_id:
+        return True
+
+    return False
 
   def CreateScratchDisk(self, disk_spec):
     """Create a VM's scratch disk.
