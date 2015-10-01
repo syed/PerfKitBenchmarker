@@ -13,15 +13,21 @@
 # limitations under the License.
 """Cloudstack utils"""
 
+import csapi
+import os
 from perfkitbenchmarker import flags
-# import csapi
 
 flags.DEFINE_string('CS_API_URL',
                     'http://127.0.0.1:8080/client/api',
                     'API endpoint for Cloudstack.')
 
-flags.DEFINE_string('CS_API_KEY', '', 'Key for API authentication')
-flags.DEFINE_string('CS_API_SECRET', '', 'Secret for API authentication')
+flags.DEFINE_string('CS_API_KEY', 
+                    os.environ.get('CS_API_KEY'), 
+                    'Key for API authentication')
+
+flags.DEFINE_string('CS_API_SECRET', 
+                    os.environ.get('CS_API_KEY'),
+                    'Secret for API authentication')
 
 FLAGS = flags.FLAGS
 
