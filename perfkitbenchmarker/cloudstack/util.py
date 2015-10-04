@@ -19,7 +19,7 @@ from csapi import API
 from perfkitbenchmarker import flags
 
 flags.DEFINE_string('CS_API_URL',
-                    'http://127.0.0.1:8080/client/api',
+                    os.environ.get('CS_API_URL'),
                     'API endpoint for Cloudstack.')
 
 flags.DEFINE_string('CS_API_KEY',
@@ -40,9 +40,7 @@ class CsClient(object):
         self._cs = API(
             api_key,
             secret,
-            url,
-            logging=True,
-            log="/home/syed/csapi.log"
+            url
         )
 
     def get_zone_id(self, zone_name):
@@ -203,3 +201,6 @@ class CsClient(object):
 
         res = self._cs.request(cs_args)
         return res
+
+    def alloc_public_ip(self, network_id, is_vpc=False):
+        pass
