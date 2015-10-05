@@ -75,15 +75,25 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     # TODO: Create a public ip for the VM
     # Create an ssh keypair
     print "Create deps\n"
-    pass
+
+    # Allocate a public ip
+    public_ip = self.cs.alloc_public_ip(
+        self.network.id,
+        self.network.is_vpc
+    )
+
+    if public_ip:
+        self.ip_address = public_ip['ipaddress']
+        self.ip_address_id = public_ip['id']
+
 
   def _DeleteDependencies(self):
     """Delete VM dependencies."""
     print "Delete deps\n"
     # TODO: Remove the keypair
     # Remove the IP
-
-    pass
+    if self.ip_address_id:
+        self.cs.release_ip(self.ip_address_id)
 
   def _Create(self):
     """Create a Cloudstack VM instance."""
@@ -130,7 +140,22 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     # assosiate the public ip created with the VMid
     network_interface = self._vm['virtualmachine']['nic'][0]
     self.internal_ip = network_interface['ipaddress']
-    self.ip_address = None  # TODO should be public IP
+
+    # Create a Static NAT rule
+
+    if self.network.is_vpc:
+        network_id = '002decaa-5089-4069-9313-37b05ae39751'  # Tier 1
+    else:
+        network_id = None
+
+    snat_rule = self.cs.enable_static_nat(
+        self.ip_address_id,
+        self.id,
+        network_id
+    )
+    if snat_rule:
+        self.snat_rule_id = snat_rule['id']
+
 
   def _Delete(self):
     """Delete the VM instance."""

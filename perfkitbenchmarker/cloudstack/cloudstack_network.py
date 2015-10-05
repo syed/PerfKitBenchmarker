@@ -44,6 +44,8 @@ class CloudStackNetwork(network.BaseNetwork):
     self.zone = zone
     self.network_offering = ""
     self.vpc_offering = ""
+    self.is_vpc = True
+    self.id = "0ff8a360-8660-4937-9d7d-1a37d79e887b"  # VPC id
 
 
   def Create(self):

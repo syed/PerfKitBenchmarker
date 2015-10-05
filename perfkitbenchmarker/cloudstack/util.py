@@ -203,4 +203,38 @@ class CsClient(object):
         return res
 
     def alloc_public_ip(self, network_id, is_vpc=False):
-        pass
+
+        cs_args = {
+            'command': 'associateIpAddress',
+        }
+
+        if is_vpc:
+            cs_args.update({'vpcid': network_id})
+        else:
+            cs_args.update({'networkid': network_id})
+
+        res = self._cs.request(cs_args)
+
+        if res and 'ipaddress' in res:
+            return res['ipaddress']
+
+        return None
+
+    def enable_static_nat(self, ip_address_id, vm_id, network_id):
+
+        cs_args = {
+            'command': 'enableStaticNat',
+            'ipaddressid': ip_address_id,
+            'virtualmachineid': vm_id
+        }
+
+        if network_id:
+            cs_args.update({'networkid': network_id})
+
+
+        res = self._cs.request(cs_args)
+
+        if res and 'staticnat' in res:
+            return res['staticnat']
+
+        return None
