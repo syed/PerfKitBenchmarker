@@ -122,7 +122,6 @@ class CloudStackNetwork(network.BaseNetwork):
 
 
     # Create the network
-
     network = self.cs.create_network(self.network_name,
                                      self.network_offering_id,
                                      self.zone_id,
@@ -138,7 +137,8 @@ class CloudStackNetwork(network.BaseNetwork):
     """Deletes the actual network."""
 
     self.cs.delete_network(self.network_id)
-    if self.is_vpc:
+    if self.is_vpc and self.vpc_id:
         self.cs.delete_vpc(self.vpc_id)
 
-    self.cs.delete_network(self.network_id)
+    if self.network_id:
+        self.cs.delete_network(self.network_id)
