@@ -136,6 +136,21 @@ class CsClient(object):
 
         return None
 
+    def get_network_offering(self, network_offering_name, project_id):
+        cs_args = {
+            'command': 'listNetworkOfferings',
+        }
+
+        nw_offerings = self._cs.request(cs_args)
+        logging.debug(nw_offerings)
+
+        if nw_offerings and 'networkoffering' in nw_offerings:
+            for nw_off in nw_offerings['networkoffering']:
+                if nw_off['name'] == network_offering_name:
+                    return nw_off
+
+        return None
+
     def get_vpc(self, vpc_name, project_id=None):
 
         cs_args = {
@@ -152,6 +167,22 @@ class CsClient(object):
             for vpc in vpcs['vpc']:
                 if vpc['name'] == vpc_name:
                     return vpc['id']
+
+        return None
+
+    def get_vpc_offering(self, vpc_offering_name):
+
+        cs_args = {
+            'command': 'listVPCOfferings',
+        }
+
+        vpc_offerings = self._cs.request(cs_args)
+        logging.debug(vpc_offerings)
+
+        if vpc_offerings and 'vpcoffering' in vpc_offerings:
+            for vpc_off in vpc_offerings['vpcoffering']:
+                if vpc_off['name'] == vpc_offering_name:
+                    return vpc_off
 
         return None
 
@@ -230,7 +261,10 @@ class CsClient(object):
         vpc = self._cs.request(cs_args)
         logging.debug(vpc)
 
-        return vpc
+        if vpc and 'vpc' in vpc:
+            return vpc['vpc']
+
+        return None
 
     def delete_vpc(self, vpc_id):
 
@@ -267,11 +301,13 @@ class CsClient(object):
                 'netmask': netmask
             })
 
-        res = self._cs.request(cs_args)
-        logging.debug(res)
+        nw = self._cs.request(cs_args)
+        logging.debug(nw)
 
-        return res
+        if nw and 'network' in nw:
+            return nw['network']
 
+        return nw
 
     def delete_network(self, network_id):
 

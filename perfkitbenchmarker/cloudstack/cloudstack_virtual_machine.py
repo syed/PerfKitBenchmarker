@@ -19,24 +19,24 @@ from perfkitbenchmarker import vm_util
 from perfkitbenchmarker.cloudstack import cloudstack_network
 from perfkitbenchmarker.cloudstack import util
 
-
-
-FLAGS = flags.FLAGS
-
-NVME = 'nvme'
-SCSI = 'SCSI'
 UBUNTU_IMAGE = 'Ubuntu 14.04.2 HVM base (64bit)'
 RHEL_IMAGE = 'CentOS 7 HVM base (64bit)'
 
+flags.DEFINE_string('cs_service_offering',
+                    '1vCPU.1GB',
+                    'Secret for API authentication')
+
+FLAGS = flags.FLAGS
+
 
 class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
-  """Object representing a Google Compute Engine Virtual Machine."""
+  """Object representing a CloudStack Virtual Machine."""
 
   DEFAULT_ZONE = 'QC-1'
   DEFAULT_MACHINE_TYPE = '1vCPU.1GB'
-  DEFAULT_TEMPLATE = 'Ubuntu 14.04.2 HVM base (64bit)'
+  DEFAULT_IMAGE = 'Ubuntu 14.04.2 HVM base (64bit)'
   DEFAULT_USERNAME = 'cca-user'
-  DEFAULT_PROJECT = 'PerfKitBenchmark'
+  DEFAULT_PROJECT = 'cloudops-Engineering'
 
 
   def __init__(self, vm_spec):
@@ -47,7 +47,10 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     """
     super(CloudStackVirtualMachine, self).__init__(vm_spec)
     self.project = self.DEFAULT_PROJECT
-    self.network = cloudstack_network.CloudStackNetwork.GetNetwork(None)
+
+    self.network = \
+        cloudstack_network.CloudStackNetwork.GetNetwork(self.DEFAULT_ZONE)
+
     self.username = self.DEFAULT_USERNAME
 
     self.cs = util.CsClient(
@@ -56,8 +59,9 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
         FLAGS.CS_API_SECRET
     )
 
-    project_id = self.cs.get_project_id("cloudops-Engineering")
-    self.project_id = project_id
+    project = self.cs.get_project("cloudops-Engineering")
+    if project:
+        self.project_id = project['id']
 
 
   @classmethod
@@ -108,14 +112,8 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
         "Ubuntu 14.04.2 HVM base (64bit)",
         self.project_id
     )
-    vpc_id = self.cs.get_vpc_id("syed-vpc", self.project_id)
 
-    network_id = self.cs.get_network_id(
-        "tier1",
-        self.project_id,
-        vpc_id
-    )
-
+    network_id = self.network.id
 
     self._vm = self.cs.create_vm(
         self.name,
@@ -143,16 +141,13 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
 
     # Create a Static NAT rule
 
-    if self.network.is_vpc:
-        network_id = '002decaa-5089-4069-9313-37b05ae39751'  # Tier 1
-    else:
-        network_id = None
 
     snat_rule = self.cs.enable_static_nat(
         self.ip_address_id,
         self.id,
-        network_id
+        self.network.id
     )
+
     if snat_rule:
         self.snat_rule_id = snat_rule['id']
 
@@ -166,8 +161,8 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     """Returns true if the VM exists."""
     # TODO: Check if VM exisits
 
-    vm_id = self.cs.get_virtual_machine_id(self.name, self.project_id)
-    if vm_id:
+    vm = self.cs.get_virtual_machine(self.name, self.project_id)
+    if vm and 'id' in vm:
         return True
 
     return False

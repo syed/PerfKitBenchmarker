@@ -20,9 +20,20 @@ same project. See https://developers.google.com/compute/docs/networking for
 more information about GCE VM networking.
 """
 
-
 from perfkitbenchmarker import flags
 from perfkitbenchmarker import network
+from perfkitbenchmarker.cloudstack import util
+
+flags.DEFINE_string('cs_network_offering',
+                    'DefaultIsolatedNetworkOfferingForVpcNetworksNoLB',
+                    'Name of the network offering')
+
+flags.DEFINE_string('cs_vpc_offering',
+                    'Default VPC offering',
+                    'Name of the VPC offering')
+
+flags.DEFINE_boolean('cs_use_vpc', True,
+                     'Use VPC to create networks')
 
 
 FLAGS = flags.FLAGS
@@ -38,21 +49,96 @@ class CloudStackFirewall(network.BaseFirewall):
 class CloudStackNetwork(network.BaseNetwork):
   """Object representing a CloudStack Network."""
 
-  def __init__(self, zone):
+  def __init__(self, zone_name):
+
     print "INIT Network"
     super(CloudStackNetwork, self).__init__()
-    self.zone = zone
-    self.network_offering = ""
-    self.vpc_offering = ""
-    self.is_vpc = True
-    self.id = "0ff8a360-8660-4937-9d7d-1a37d79e887b"  # VPC id
 
+    self.cs = util.CsClient(
+        FLAGS.CS_API_URL,
+        FLAGS.CS_API_KEY,
+        FLAGS.CS_API_SECRET
+    )
+
+    self.project_id = None
+
+
+    if FLAGS.project:
+        project = self.cs.get_project(FLAGS.project)
+        if project:
+            self.project_id = project['id']
+
+    self.zone_id = None
+
+    zone = self.cs.get_zone(zone_name)
+    if zone:
+        self.zone_id = zone['id']
+        self.zone = zone_name
+
+    assert self.zone_id, "Zone required to create a network"
+
+    self.network_name = None
+
+    nw_off = self.cs.get_network_offering(FLAGS.cs_network_offering,
+                                          self.project_id)
+
+    assert nw_off, "Network offering not found"
+
+    self.network_offering_id = nw_off['id']
+    self.network_name = 'perfkit-network-%s' % FLAGS.run_uri
+
+    self.is_vpc = FLAGS.cs_use_vpc
+    self.vpc_id = None
+
+    if FLAGS.cs_use_vpc:
+        vpc_off = self.cs.get_vpc_offering(FLAGS.cs_vpc_offering)
+
+        assert vpc_off, "Use VPC specified but VPC offering not found"
+
+        self.vpc_offering_id = vpc_off['id']
+        self.vpc_name = 'perfkit-vpc-%s' % FLAGS.run_uri
+
+    self.id = None
 
   def Create(self):
     """Creates the actual network."""
     print "Creating Network"
-    pass
+
+    gateway = None
+    netmask = None
+
+    if self.is_vpc:
+        # Create a VPC first
+
+        cidr = '10.0.0.0/16'
+        vpc = self.cs.create_vpc(self.vpc_name,
+                                 self.zone_id,
+                                 cidr,
+                                 self.vpc_offering_id,
+                                 self.project_id)
+        self.vpc_id = vpc['id']
+        gateway = '10.0.0.1'
+        netmask = '255.255.0.0'
+
+
+    # Create the network
+
+    network = self.cs.create_network(self.network_name,
+                                     self.network_offering_id,
+                                     self.zone_id,
+                                     self.project_id,
+                                     self.vpc_id,
+                                     gateway,
+                                     netmask)
+
+    self.network_id = network['id']
+    self.id = self.network_id
 
   def Delete(self):
     """Deletes the actual network."""
-    print "Deleting Network"
+
+    self.cs.delete_network(self.network_id)
+    if self.is_vpc:
+        self.cs.delete_vpc(self.vpc_id)
+
+    self.cs.delete_network(self.network_id)
