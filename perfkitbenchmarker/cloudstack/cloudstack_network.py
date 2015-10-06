@@ -118,7 +118,7 @@ class CloudStackNetwork(network.BaseNetwork):
                                  self.project_id)
         self.vpc_id = vpc['id']
         gateway = '10.0.0.1'
-        netmask = '255.255.0.0'
+        netmask = '255.255.255.0'
 
 
     # Create the network
@@ -130,15 +130,16 @@ class CloudStackNetwork(network.BaseNetwork):
                                      gateway,
                                      netmask)
 
+    assert network, "No network could be created"
+
     self.network_id = network['id']
     self.id = self.network_id
 
   def Delete(self):
     """Deletes the actual network."""
 
-    self.cs.delete_network(self.network_id)
-    if self.is_vpc and self.vpc_id:
-        self.cs.delete_vpc(self.vpc_id)
-
     if self.network_id:
         self.cs.delete_network(self.network_id)
+
+    if self.is_vpc and self.vpc_id:
+        self.cs.delete_vpc(self.vpc_id)

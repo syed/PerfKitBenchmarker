@@ -40,7 +40,8 @@ class CsClient(object):
         self._cs = API(
             api_key,
             secret,
-            url
+            url,
+            logging=True
         )
 
     def get_zone(self, zone_name):
@@ -282,7 +283,7 @@ class CsClient(object):
                        name,
                        network_offering_id,
                        zone_id,
-                       projet_id=None,
+                       project_id=None,
                        vpc_id=None,
                        gateway=None,
                        netmask=None):
@@ -290,9 +291,13 @@ class CsClient(object):
         cs_args = {
             'command': 'createNetwork',
             'name': name,
+            'displaytext': name,
             'zoneid': zone_id,
             'networkofferingid': network_offering_id,
         }
+
+        if project_id:
+            cs_args.update({"projectid": project_id})
 
         if vpc_id:
             cs_args.update({

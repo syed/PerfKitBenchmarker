@@ -22,10 +22,6 @@ from perfkitbenchmarker.cloudstack import util
 UBUNTU_IMAGE = 'Ubuntu 14.04.2 HVM base (64bit)'
 RHEL_IMAGE = 'CentOS 7 HVM base (64bit)'
 
-flags.DEFINE_string('cs_service_offering',
-                    '1vCPU.1GB',
-                    'Secret for API authentication')
-
 FLAGS = flags.FLAGS
 
 
@@ -35,7 +31,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
   DEFAULT_ZONE = 'QC-1'
   DEFAULT_MACHINE_TYPE = '1vCPU.1GB'
   DEFAULT_IMAGE = 'Ubuntu 14.04.2 HVM base (64bit)'
-  DEFAULT_USERNAME = 'cca-user'
+  DEFAULT_USER_NAME = 'cca-user'
   DEFAULT_PROJECT = 'cloudops-Engineering'
 
 
@@ -51,15 +47,14 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     self.network = \
         cloudstack_network.CloudStackNetwork.GetNetwork(self.DEFAULT_ZONE)
 
-    self.username = self.DEFAULT_USERNAME
-
     self.cs = util.CsClient(
         FLAGS.CS_API_URL,
         FLAGS.CS_API_KEY,
         FLAGS.CS_API_SECRET
     )
 
-    project = self.cs.get_project("cloudops-Engineering")
+    self.project_id = None
+    project = self.cs.get_project(FLAGS.project)
     if project:
         self.project_id = project['id']
 
@@ -106,27 +101,31 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     print "-" * 30
     print "CREATE VM\n"
 
-    zone_id = self.cs.get_zone_id("QC-1")
-    service_offering_id = self.cs.get_serviceoffering_id("1vCPU.1GB")
-    template_id = self.cs.get_template_id(
-        "Ubuntu 14.04.2 HVM base (64bit)",
-        self.project_id
-    )
+    zone = self.cs.get_zone(self.zone)
+    assert zone, "No zone found"
+
+    service_offering = self.cs.get_serviceoffering(self.machine_type)
+    assert service_offering, "No service offering found"
+
+    template = self.cs.get_template(self.image, self.project_id)
+    assert template, "No template found"
 
     network_id = self.network.id
 
     self._vm = self.cs.create_vm(
         self.name,
-        zone_id,
-        service_offering_id,
-        template_id,
+        zone['id'],
+        service_offering['id'],
+        template['id'],
         [network_id],
         self.project_id
     )
 
+    # TODO: Raise retryable excception if not able to create
+    assert self._vm, "Unable to create VM"
+
     self.id = self._vm['virtualmachine']['id']
 
-    # TODO: Raise retryable excception if not able to create
 
   @vm_util.Retry()
   def _PostCreate(self):
@@ -140,8 +139,6 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     self.internal_ip = network_interface['ipaddress']
 
     # Create a Static NAT rule
-
-
     snat_rule = self.cs.enable_static_nat(
         self.ip_address_id,
         self.id,
