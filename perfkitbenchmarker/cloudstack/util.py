@@ -449,3 +449,53 @@ class CsClient(object):
                 return acl
 
         return None
+
+    def get_volume(self, name, project_id=None):
+
+        cs_args = {
+            'command': 'listVolumes',
+        }
+
+        if project_id:
+            cs_args.update({"projectid": project_id})
+
+        vols = self._cs.request(cs_args)
+
+        if vols and 'volume' in vols:
+            for v in vols['volume']:
+                if v['name'] == name:
+                    return v
+
+        return None
+
+    def delete_volume(self, volume_id):
+
+        cs_args = {
+            'command': 'deleteVolume',
+            'id': volume_id
+        }
+
+        res = self._cs.request(cs_args)
+        return res
+
+    def attach_volume(self, vol_id, vm_id):
+
+        cs_args = {
+            'command': 'attachVolume',
+            'id': vol_id,
+            'virtualmachineid': vm_id
+        }
+
+        res = self._cs.request(cs_args)
+        return res
+
+
+    def detach_volume(self, vol_id):
+
+        cs_args = {
+            'command': 'detachVolume',
+            'id': vol_id,
+        }
+
+        res = self._cs.request(cs_args)
+        return res
