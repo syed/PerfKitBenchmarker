@@ -120,6 +120,9 @@ class CloudStackNetwork(network.BaseNetwork):
         gateway = '10.0.0.1'
         netmask = '255.255.255.0'
 
+        acl = self.cs.get_network_acl('default_allow', self.project_id)
+        assert acl, "Default allow ACL not found"
+
 
     # Create the network
     network = self.cs.create_network(self.network_name,
@@ -128,7 +131,10 @@ class CloudStackNetwork(network.BaseNetwork):
                                      self.project_id,
                                      self.vpc_id,
                                      gateway,
-                                     netmask)
+                                     netmask,
+                                     acl['id'])
+
+
 
     assert network, "No network could be created"
 

@@ -246,6 +246,7 @@ class CsClient(object):
         cs_args = {
             'command': 'destroyVirtualMachine',
             'id': vm_id,
+            'expunge': 'true'  # Requres root/domain admin
         }
 
         res = self._cs.request(cs_args)
@@ -293,7 +294,8 @@ class CsClient(object):
                        project_id=None,
                        vpc_id=None,
                        gateway=None,
-                       netmask=None):
+                       netmask=None,
+                       acl_id=None):
 
         cs_args = {
             'command': 'createNetwork',
@@ -310,7 +312,8 @@ class CsClient(object):
             cs_args.update({
                 'vpcid': vpc_id,
                 'gateway': gateway,
-                'netmask': netmask
+                'netmask': netmask,
+                'aclid': acl_id
             })
 
         nw = self._cs.request(cs_args)
@@ -426,5 +429,23 @@ class CsClient(object):
             for kp in kps['keypair']:
                 if kp['name'] == name:
                     return kp
+
+        return None
+
+    def get_network_acl(self, name, project_id=None):
+
+        cs_args = {
+            'command': 'listNetworkACLLists',
+        }
+
+        if project_id:
+            cs_args.update({"projectid": project_id})
+
+        acllist = self._cs.request(cs_args)
+
+        for acl in acllist['networkacllist']:
+            print acl['name']
+            if acl['name'] == name:
+                return acl
 
         return None

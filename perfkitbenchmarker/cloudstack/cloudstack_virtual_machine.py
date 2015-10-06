@@ -19,8 +19,6 @@ from perfkitbenchmarker import vm_util
 from perfkitbenchmarker.cloudstack import cloudstack_network
 from perfkitbenchmarker.cloudstack import util
 
-import time
-
 UBUNTU_IMAGE = 'Ubuntu 14.04.2 HVM base (64bit)'
 RHEL_IMAGE = 'CentOS 7 HVM base (64bit)'
 
@@ -168,9 +166,6 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     """Delete the VM instance."""
     # Delete the VM
     self.cs.delete_vm(self.id)
-
-    if FLAGS.expuge_wait_time:
-        time.sleep(FLAGS.expuge_wait_time)
 
   def _Exists(self):
     """Returns true if the VM exists."""
