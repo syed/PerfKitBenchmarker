@@ -76,10 +76,11 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     print "Create deps\n"
 
     # Allocate a public ip
-    public_ip = self.cs.alloc_public_ip(
-        self.network.id,
-        self.network.is_vpc
-    )
+    network_id = self.network.id
+    if self.network.is_vpc:
+        network_id = self.network.vpc_id
+
+    public_ip = self.cs.alloc_public_ip(network_id, self.network.is_vpc)
 
     if public_ip:
         self.ip_address = public_ip['ipaddress']
@@ -92,7 +93,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     # TODO: Remove the keypair
     # Remove the IP
     if self.ip_address_id:
-        self.cs.release_ip(self.ip_address_id)
+        self.cs.release_public_ip(self.ip_address_id)
 
   def _Create(self):
     """Create a Cloudstack VM instance."""

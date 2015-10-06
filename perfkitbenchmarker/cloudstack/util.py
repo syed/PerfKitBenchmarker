@@ -133,7 +133,7 @@ class CsClient(object):
             for network in networks['network']:
                 print network['name']
                 if network['name'] == network_name:
-                    return network['id']
+                    return network
 
         return None
 
@@ -167,7 +167,7 @@ class CsClient(object):
         if vpcs and 'vpc' in vpcs:
             for vpc in vpcs['vpc']:
                 if vpc['name'] == vpc_name:
-                    return vpc['id']
+                    return vpc
 
         return None
 
@@ -202,7 +202,7 @@ class CsClient(object):
         if vms and 'virtualmachine' in vms:
             for vm in vms['virtualmachine']:
                 if vm['name'] == vm_name:
-                    return vm['id']
+                    return vm
 
         return None
 
@@ -229,6 +229,7 @@ class CsClient(object):
             create_vm_args.update({"projectid": project_id})
 
         vm = self._cs.request(create_vm_args)
+
         logging.debug(vm)
 
         return vm
@@ -237,7 +238,8 @@ class CsClient(object):
 
         cs_args = {
             'command': 'destroyVirtualMachine',
-            'id': vm_id
+            'id': vm_id,
+            'expunge': True
         }
 
         res = self._cs.request(cs_args)
