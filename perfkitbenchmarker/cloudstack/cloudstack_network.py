@@ -138,6 +138,9 @@ class CloudStackNetwork(network.BaseNetwork):
   def Delete(self):
     """Deletes the actual network."""
 
+    print '-' * 30
+    print "DELETE Network"
+
     if self.network_id:
         self.cs.delete_network(self.network_id)
 

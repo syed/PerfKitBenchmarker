@@ -31,7 +31,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
   DEFAULT_ZONE = 'QC-1'
   DEFAULT_MACHINE_TYPE = '1vCPU.1GB'
   DEFAULT_IMAGE = 'Ubuntu 14.04.2 HVM base (64bit)'
-  DEFAULT_USER_NAME = 'cca-user'
+  DEFAULT_USERNAME = 'cca-user'
   DEFAULT_PROJECT = 'cloudops-Engineering'
 
 
@@ -58,6 +58,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     if project:
         self.project_id = project['id']
 
+    self.user_name = self.DEFAULT_USERNAME
 
   @classmethod
   def SetVmSpecDefaults(cls, vm_spec):
@@ -71,9 +72,18 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
 
   def _CreateDependencies(self):
     """Create VM dependencies."""
-    # TODO: Create a public ip for the VM
-    # Create an ssh keypair
+    print '-' * 30
     print "Create deps\n"
+
+    # Create an ssh keypair
+    with open(self.ssh_public_key) as keyfd:
+        self.ssh_keypair_name = 'perfkit-sshkey-%s' % FLAGS.run_uri
+        pub_key = keyfd.read()
+        res = self.cs.register_ssh_keypair(self.ssh_keypair_name,
+                                           pub_key,
+                                           self.project_id)
+
+        assert res, "Unable to create ssh keypair"
 
     # Allocate a public ip
     network_id = self.network.id
@@ -90,7 +100,9 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
   def _DeleteDependencies(self):
     """Delete VM dependencies."""
     print "Delete deps\n"
-    # TODO: Remove the keypair
+    # Remove the keypair
+    self.cs.unregister_ssh_keypair(self.ssh_keypair_name, self.project_id)
+
     # Remove the IP
     if self.ip_address_id:
         self.cs.release_public_ip(self.ip_address_id)
@@ -119,6 +131,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
         service_offering['id'],
         template['id'],
         [network_id],
+        self.ssh_keypair_name,
         self.project_id
     )
 
@@ -154,6 +167,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     """Delete the VM instance."""
     # TODO: Delete the VM
     self.cs.delete_vm(self.id)
+    self.cs.expunge_vm(self.id)
 
   def _Exists(self):
     """Returns true if the VM exists."""

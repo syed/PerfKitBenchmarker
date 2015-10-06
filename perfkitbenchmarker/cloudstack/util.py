@@ -18,6 +18,9 @@ import os
 from csapi import API
 from perfkitbenchmarker import flags
 
+from requests.packages import urllib3
+urllib3.disable_warnings()
+
 flags.DEFINE_string('CS_API_URL',
                     os.environ.get('CS_API_URL'),
                     'API endpoint for Cloudstack.')
@@ -212,6 +215,7 @@ class CsClient(object):
                   service_offering_id,
                   template_id,
                   network_ids=None,
+                  keypair=None,
                   project_id=None):
 
         create_vm_args = {
@@ -219,11 +223,14 @@ class CsClient(object):
             'serviceofferingid': service_offering_id,
             'templateid': template_id,
             'zoneid': zone_id,
-            'name': name
+            'name': name,
         }
 
         if network_ids:
             create_vm_args.update({"networkids": network_ids})
+
+        if keypair:
+            create_vm_args.update({'keypair': keypair})
 
         if project_id:
             create_vm_args.update({"projectid": project_id})
@@ -239,7 +246,18 @@ class CsClient(object):
         cs_args = {
             'command': 'destroyVirtualMachine',
             'id': vm_id,
-            'expunge': True
+        }
+
+        res = self._cs.request(cs_args)
+        logging.debug(res)
+
+        return res
+
+    def expunge_vm(self, vm_id):
+
+        cs_args = {
+            'command': 'expungeVirtualMachine',
+            'id': vm_id,
         }
 
         res = self._cs.request(cs_args)
@@ -374,3 +392,34 @@ class CsClient(object):
             return res['staticnat']
 
         return None
+
+    def register_ssh_keypair(self, name, public_key, project_id=None):
+
+        cs_args = {
+            'command': 'registerSSHKeyPair',
+            'name': name,
+            'publickey': public_key,
+        }
+
+        if project_id:
+            cs_args.update({"projectid": project_id})
+
+        res = self._cs.request(cs_args)
+        print res
+        return res
+
+
+    def unregister_ssh_keypair(self, name, project_id=None):
+
+        cs_args = {
+            'command': 'deleteSSHKeyPair',
+            'name': name,
+        }
+
+        if project_id:
+            cs_args.update({"projectid": project_id})
+
+        res = self._cs.request(cs_args)
+        print res
+
+        return res
