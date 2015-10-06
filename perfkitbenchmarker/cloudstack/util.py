@@ -14,6 +14,7 @@
 """Cloudstack utils"""
 
 import logging
+import urllib
 import os
 from csapi import API
 from perfkitbenchmarker import flags
@@ -236,7 +237,6 @@ class CsClient(object):
             create_vm_args.update({"projectid": project_id})
 
         vm = self._cs.request(create_vm_args)
-
         logging.debug(vm)
 
         return vm
@@ -249,20 +249,6 @@ class CsClient(object):
         }
 
         res = self._cs.request(cs_args)
-        logging.debug(res)
-
-        return res
-
-    def expunge_vm(self, vm_id):
-
-        cs_args = {
-            'command': 'expungeVirtualMachine',
-            'id': vm_id,
-        }
-
-        res = self._cs.request(cs_args)
-        logging.debug(res)
-
         return res
 
     def create_vpc(self, name, zone_id, cidr, vpc_offering_id, project_id=None):
@@ -296,6 +282,7 @@ class CsClient(object):
 
         res = self._cs.request(cs_args)
         logging.debug(res)
+
 
         return res
 
@@ -338,7 +325,7 @@ class CsClient(object):
 
         cs_args = {
             'command': 'deleteNetwork',
-            'id': network_id
+            'id': network_id,
         }
 
         res = self._cs.request(cs_args)
@@ -398,14 +385,13 @@ class CsClient(object):
         cs_args = {
             'command': 'registerSSHKeyPair',
             'name': name,
-            'publickey': public_key,
+            'publickey': urllib.quote(public_key),
         }
 
         if project_id:
             cs_args.update({"projectid": project_id})
 
-        res = self._cs.request(cs_args)
-        print res
+        res = self._cs.request(cs_args, method='post')
         return res
 
 
@@ -423,3 +409,22 @@ class CsClient(object):
         print res
 
         return res
+
+    def get_ssh_keypair(self, name, project_id=None):
+
+        cs_args = {
+            'command': 'listSSHKeyPairs',
+            'name': name,
+        }
+
+        if project_id:
+            cs_args.update({"projectid": project_id})
+
+        kps = self._cs.request(cs_args)
+
+        if kps and 'keypair' in kps:
+            for kp in kps['keypair']:
+                if kp['name'] == name:
+                    return kp
+
+        return None
