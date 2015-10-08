@@ -51,7 +51,6 @@ class CloudStackNetwork(network.BaseNetwork):
 
   def __init__(self, zone_name):
 
-    print "INIT Network"
     super(CloudStackNetwork, self).__init__()
 
     self.cs = util.CsClient(
@@ -102,7 +101,6 @@ class CloudStackNetwork(network.BaseNetwork):
 
   def Create(self):
     """Creates the actual network."""
-    print "Creating Network"
 
     gateway = None
     netmask = None
@@ -143,9 +141,6 @@ class CloudStackNetwork(network.BaseNetwork):
 
   def Delete(self):
     """Deletes the actual network."""
-
-    print '-' * 30
-    print "DELETE Network"
 
     if self.network_id:
         self.cs.delete_network(self.network_id)

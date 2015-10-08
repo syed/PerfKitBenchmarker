@@ -450,18 +450,19 @@ class CsClient(object):
 
         return None
 
-    def create_volume(self, diskoffering_id, zone_id, project_id=None):
+    def create_volume(self, name, diskoffering_id, zone_id, project_id=None):
 
         cs_args = {
             'command': 'createVolume',
             'diskofferingid': diskoffering_id,
-            'zoneid': zone_id
+            'zoneid': zone_id,
+            'name': name
         }
 
         if project_id:
             cs_args.update({'projectid': project_id})
 
-        vol = self.cs.request(cs_args)
+        vol = self._cs.request(cs_args)
 
         if vol and 'volume' in vol:
             return vol['volume']
@@ -531,7 +532,7 @@ class CsClient(object):
 
         disk_off = self._cs.request(cs_args)
 
-        if disk_off and 'volume' in disk_off:
-            return disk_off['volume']
+        if disk_off and 'diskoffering' in disk_off:
+            return disk_off['diskoffering']
 
         return None

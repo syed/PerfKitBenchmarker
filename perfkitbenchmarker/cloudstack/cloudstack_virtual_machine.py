@@ -33,7 +33,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
   DEFAULT_ZONE = 'QC-1'
   DEFAULT_MACHINE_TYPE = '1vCPU.1GB'
   DEFAULT_IMAGE = 'Ubuntu 14.04.2 HVM base (64bit)'
-  DEFAULT_USERNAME = 'cca-user'
+  DEFAULT_USER_NAME = 'cca-user'
   DEFAULT_PROJECT = 'cloudops-Engineering'
 
 
@@ -44,7 +44,6 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
       vm_spec: virtual_machine.BaseVirtualMachineSpec object of the vm.
     """
     super(CloudStackVirtualMachine, self).__init__(vm_spec)
-    self.project = self.DEFAULT_PROJECT
 
     self.network = \
         cloudstack_network.CloudStackNetwork.GetNetwork(self.DEFAULT_ZONE)
@@ -56,11 +55,18 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     )
 
     self.project_id = None
-    project = self.cs.get_project(FLAGS.project)
-    if project:
+    if FLAGS.project:
+        project = self.cs.get_project(FLAGS.project)
+        assert project, "Project not found"
         self.project_id = project['id']
 
-    self.user_name = self.DEFAULT_USERNAME
+    zone = self.cs.get_zone(self.zone)
+    assert zone, "Zone not found"
+
+    self.zone_id = zone['id']
+
+    # XXX: How do we genralize this?
+    self.user_name = self.DEFAULT_USER_NAME
 
 
   @classmethod
@@ -81,7 +87,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
         self.ssh_keypair_name = 'perfkit-sshkey-%s' % FLAGS.run_uri
         pub_key = keyfd.read()
 
-        if not self.get_ssh_keypair(self.ssh_keypair_name, self.project_id):
+        if not self.cs.get_ssh_keypair(self.ssh_keypair_name, self.project_id):
 
             res = self.cs.register_ssh_keypair(self.ssh_keypair_name,
                                                pub_key,
@@ -108,7 +114,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     # Remove the keypair
 
 
-    if self.get_ssh_keypair(self.ssh_keypair_name, self.project_id):
+    if self.cs.get_ssh_keypair(self.ssh_keypair_name, self.project_id):
         self.cs.unregister_ssh_keypair(self.ssh_keypair_name, self.project_id)
 
     # Remove the IP
@@ -193,19 +199,19 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     # starts with one disk and all other volumes have to be attached via the
     # API
 
-    disks = []
+    self.disks = []
 
     for i in xrange(disk_spec.num_striped_disks):
 
-        name = 'disk-%s-%s' % (self.name, i)
+        name = 'disk-%s-%s' % (self.name, i + 1)
         scratch_disk = cloudstack_disk.CloudStackDisk(disk_spec,
                                                       name,
                                                       self.zone_id,
                                                       self.project_id)
 
-        self.scratch_disks.append(scratch_disk)
+        self.disks.append(scratch_disk)
 
-    self._CreateScratchDiskFromDisks(disk_spec, disks)
+    self._CreateScratchDiskFromDisks(disk_spec, self.disks)
 
 
 class DebianBasedCloudStackVirtualMachine(CloudStackVirtualMachine,

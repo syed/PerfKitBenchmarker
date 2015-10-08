@@ -66,7 +66,7 @@ class CloudStackDisk(disk.BaseDisk):
 
     self.volume_id = volume['id']
     self.disk_type = volume['type']
-    self.actual_disk_size = int(volume['size'])
+    self.actual_disk_size = int(volume['size']) / (2 ** 30)  # In GB
 
 
   def _Delete(self):
@@ -80,7 +80,7 @@ class CloudStackDisk(disk.BaseDisk):
 
   def _Exists(self):
     """Returns true if the disk exists."""
-    vol = self.cs.get_volume(self.name)
+    vol = self.cs.get_volume(self.name, self.project_id)
     if vol:
         return True
     return False
@@ -124,7 +124,7 @@ class CloudStackDisk(disk.BaseDisk):
     """
 
     disk_offerings = self.cs.list_disk_offerings()
-    sorted_do = sorted(disk_offerings, key=lambda x: int(x['disksize']))
+    sorted_do = sorted(disk_offerings, key=lambda x: x['disksize'])
 
     for do in sorted_do:
         if int(do['disksize']) >= disk_size:
