@@ -17,7 +17,9 @@ from perfkitbenchmarker import linux_virtual_machine as linux_vm
 from perfkitbenchmarker import virtual_machine
 from perfkitbenchmarker import vm_util
 from perfkitbenchmarker.cloudstack import cloudstack_network
+from perfkitbenchmarker.cloudstack import cloudstack_disk
 from perfkitbenchmarker.cloudstack import util
+
 
 UBUNTU_IMAGE = 'Ubuntu 14.04.2 HVM base (64bit)'
 RHEL_IMAGE = 'CentOS 7 HVM base (64bit)'
@@ -60,6 +62,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
 
     self.user_name = self.DEFAULT_USERNAME
 
+
   @classmethod
   def SetVmSpecDefaults(cls, vm_spec):
     """Updates the VM spec with cloud specific defaults."""
@@ -72,18 +75,20 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
 
   def _CreateDependencies(self):
     """Create VM dependencies."""
-    print '-' * 30
-    print "Create deps\n"
 
     # Create an ssh keypair
     with open(self.ssh_public_key) as keyfd:
         self.ssh_keypair_name = 'perfkit-sshkey-%s' % FLAGS.run_uri
         pub_key = keyfd.read()
-        res = self.cs.register_ssh_keypair(self.ssh_keypair_name,
-                                           pub_key,
-                                           self.project_id)
 
-        assert res, "Unable to create ssh keypair"
+        if not self.get_ssh_keypair(self.ssh_keypair_name, self.project_id):
+
+            res = self.cs.register_ssh_keypair(self.ssh_keypair_name,
+                                               pub_key,
+                                               self.project_id)
+
+            assert res, "Unable to create ssh keypair"
+
 
     # Allocate a public ip
     network_id = self.network.id
@@ -101,7 +106,10 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     """Delete VM dependencies."""
     print "Delete deps\n"
     # Remove the keypair
-    self.cs.unregister_ssh_keypair(self.ssh_keypair_name, self.project_id)
+
+
+    if self.get_ssh_keypair(self.ssh_keypair_name, self.project_id):
+        self.cs.unregister_ssh_keypair(self.ssh_keypair_name, self.project_id)
 
     # Remove the IP
     if self.ip_address_id:
@@ -143,9 +151,6 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
   @vm_util.Retry()
   def _PostCreate(self):
     """Get the instance's data."""
-    print "-" * 30
-    print "POST CREATE VM\n"
-
 
     # assosiate the public ip created with the VMid
     network_interface = self._vm['virtualmachine']['nic'][0]
@@ -183,18 +188,24 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     Args:
       disk_spec: virtual_machine.BaseDiskSpec object of the disk.
     """
-    # TODO: Create a volume
-    pass
 
-  def GetLocalDisks(self):
-    """Returns a list of local disks on the VM.
+    # Cloudstack doesn't really have a concept of local or remote disks A VM
+    # starts with one disk and all other volumes have to be attached via the
+    # API
 
-    Returns:
-      A list of strings, where each string is the absolute path to the local
-          disks on the VM (e.g. '/dev/sdb').
-    """
-    # TODO: Return list of local disks
-    pass
+    disks = []
+
+    for i in xrange(disk_spec.num_striped_disks):
+
+        name = 'disk-%s-%s' % (self.name, i)
+        scratch_disk = cloudstack_disk.CloudStackDisk(disk_spec,
+                                                      name,
+                                                      self.zone_id,
+                                                      self.project_id)
+
+        self.scratch_disks.append(scratch_disk)
+
+    self._CreateScratchDiskFromDisks(disk_spec, disks)
 
 
 class DebianBasedCloudStackVirtualMachine(CloudStackVirtualMachine,

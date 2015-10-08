@@ -21,20 +21,18 @@ from perfkitbenchmarker import disk
 from perfkitbenchmarker import flags
 from perfkitbenchmarker.cloudstack import util
 
+import string
+import threading
+
 FLAGS = flags.FLAGS
-
-flags.DEFINE_string('cs_disk_offering',
-                    '20GB - 100 IOPS Min.',
-                    'Name of the network offering')
-
 
 
 class CloudStackDisk(disk.BaseDisk):
   """Object representing a Cloudstack Disk."""
 
-  DEFAULT_DISK_OFFERING = "20GB - 100 IOPS Min."
+  _lock = threading.Lock()
 
-  def __init__(self, disk_spec, name, zone, project, image=None):
+  def __init__(self, disk_spec, name, zone_id, project_id=None):
     super(CloudStackDisk, self).__init__(disk_spec)
 
     self.cs = util.CsClient(
@@ -45,28 +43,19 @@ class CloudStackDisk(disk.BaseDisk):
 
     self.attached_vm_name = None
     self.attached_vm_id = None
-    self.image = image
     self.name = name
 
-    self.zone = zone
-    cs_zone = self.cs.get_zone(zone)
-    assert cs_zone, "Zone not found"
+    self.zone_id = zone_id
+    self.project_id = project_id
 
-    self.zone_id = cs_zone['id']
+    self.disk_offering_id = self._GetBestOfferingId(self.disk_size)
+    assert self.disk_offering_id, "Unable get disk offering of given size"
 
-    self.project = project
-    cs_project = self.cs.get_project(project)
-    assert cs_project, "Project not found"
 
-    self.project_id = cs_project['id']
-
-    disk_offering = self.cs.get_disk_offering(self.DEFAULT_DISK_OFFERING)
-    assert disk_offering, "Disk offering not found"
-
-    self.disk_offering_id = disk_offering['id']
 
   def _Create(self):
     """Creates the disk."""
+
 
     volume = self.cs.create_volume(self.name,
                                    self.disk_offering_id,
@@ -74,36 +63,71 @@ class CloudStackDisk(disk.BaseDisk):
                                    self.project_id)
 
     assert volume, "Unable to create volume"
+
     self.volume_id = volume['id']
+    self.disk_type = volume['type']
+    self.actual_disk_size = int(volume['size'])
 
 
   def _Delete(self):
     """Deletes the disk."""
-    self.cs.delete_volume(self.volume_id)
+    with self._lock:
+
+        vol = self.cs.get_volume(self.name)
+        if vol:
+            self.cs.delete_volume(self.volume_id)
 
 
   def _Exists(self):
     """Returns true if the disk exists."""
     vol = self.cs.get_volume(self.name)
-
     if vol:
         return True
-
     return False
+
 
   def Attach(self, vm):
     """Attaches the disk to a VM.
 
     Args:
-      vm: The GceVirtualMachine instance to which the disk will be attached.
+      vm: The CloudStackVirtualMachine instance to which
+      the disk will be attached.
+
     """
-    self.cs.attach_volume(self.volume_id, vm.id)
+
+    with self._lock:
+
+        res = self.cs.attach_volume(self.volume_id, vm.id)
+        assert res, "Unable to attach volume"
+
+        self.device_id = res['deviceid']
+
+        self.device_path = "/dev/xvd" + \
+            str(string.ascii_lowercase[self.device_id])
+
+
 
   def Detach(self):
     """Detaches the disk from a VM."""
 
-    self.cs.detach_volume(self.volume_id)
+    with self._lock:
+        self.cs.detach_volume(self.volume_id)
 
   def GetDevicePath(self):
     """Returns the path to the device inside the VM."""
-    pass
+    return self.device_path
+
+  def _GetBestOfferingId(self, disk_size):
+    """ Given a disk_size (in GB), try to find a disk
+    offering that is atleast as big as the requested
+    one.
+    """
+
+    disk_offerings = self.cs.list_disk_offerings()
+    sorted_do = sorted(disk_offerings, key=lambda x: int(x['disksize']))
+
+    for do in sorted_do:
+        if int(do['disksize']) >= disk_size:
+            return do['id']
+
+    return None
