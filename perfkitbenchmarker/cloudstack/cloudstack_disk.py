@@ -18,6 +18,7 @@ Use 'gcloud compute disk-types list' to determine valid disk types.
 """
 
 from perfkitbenchmarker import disk
+from perfkitbenchmarker import vm_util
 from perfkitbenchmarker import flags
 from perfkitbenchmarker.cloudstack import util
 
@@ -52,7 +53,7 @@ class CloudStackDisk(disk.BaseDisk):
     assert self.disk_offering_id, "Unable get disk offering of given size"
 
 
-
+  @vm_util.Retry(max_retries=3)
   def _Create(self):
     """Creates the disk."""
 
@@ -80,10 +81,11 @@ class CloudStackDisk(disk.BaseDisk):
 
   def _Exists(self):
     """Returns true if the disk exists."""
-    vol = self.cs.get_volume(self.name, self.project_id)
-    if vol:
-        return True
-    return False
+    with self._lock:
+        vol = self.cs.get_volume(self.name, self.project_id)
+        if vol:
+            return True
+        return False
 
 
   def Attach(self, vm):

@@ -22,6 +22,7 @@ more information about GCE VM networking.
 
 from perfkitbenchmarker import flags
 from perfkitbenchmarker import network
+from perfkitbenchmarker import vm_util
 from perfkitbenchmarker.cloudstack import util
 
 flags.DEFINE_string('cs_network_offering',
@@ -49,6 +50,7 @@ class CloudStackFirewall(network.BaseFirewall):
 class CloudStackNetwork(network.BaseNetwork):
   """Object representing a CloudStack Network."""
 
+  @vm_util.Retry(max_retries=3)
   def __init__(self, zone_name):
 
     super(CloudStackNetwork, self).__init__()

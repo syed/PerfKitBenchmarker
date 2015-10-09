@@ -20,6 +20,8 @@ from perfkitbenchmarker.cloudstack import cloudstack_network
 from perfkitbenchmarker.cloudstack import cloudstack_disk
 from perfkitbenchmarker.cloudstack import util
 
+import logging
+
 
 UBUNTU_IMAGE = 'Ubuntu 14.04.2 HVM base (64bit)'
 RHEL_IMAGE = 'CentOS 7 HVM base (64bit)'
@@ -106,14 +108,13 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     if public_ip:
         self.ip_address = public_ip['ipaddress']
         self.ip_address_id = public_ip['id']
+    else:
+        logging.warn("Unable to allocate public IP")
 
 
   def _DeleteDependencies(self):
     """Delete VM dependencies."""
-    print "Delete deps\n"
     # Remove the keypair
-
-
     if self.cs.get_ssh_keypair(self.ssh_keypair_name, self.project_id):
         self.cs.unregister_ssh_keypair(self.ssh_keypair_name, self.project_id)
 
@@ -121,14 +122,9 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     if self.ip_address_id:
         self.cs.release_public_ip(self.ip_address_id)
 
+  @vm_util.Retry(max_retries=3)
   def _Create(self):
     """Create a Cloudstack VM instance."""
-
-    print "-" * 30
-    print "CREATE VM\n"
-
-    zone = self.cs.get_zone(self.zone)
-    assert zone, "No zone found"
 
     service_offering = self.cs.get_serviceoffering(self.machine_type)
     assert service_offering, "No service offering found"
@@ -138,9 +134,10 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
 
     network_id = self.network.id
 
-    self._vm = self.cs.create_vm(
+    vm = None
+    vm = self.cs.create_vm(
         self.name,
-        zone['id'],
+        self.zone_id,
         service_offering['id'],
         template['id'],
         [network_id],
@@ -148,13 +145,13 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
         self.project_id
     )
 
-    # TODO: Raise retryable excception if not able to create
-    assert self._vm, "Unable to create VM"
+    assert vm, "Unable to create VM"
 
-    self.id = self._vm['virtualmachine']['id']
+    self._vm = vm
+    self.id = vm['virtualmachine']['id']
 
 
-  @vm_util.Retry()
+  @vm_util.Retry(max_retries=3)
   def _PostCreate(self):
     """Get the instance's data."""
 
@@ -169,8 +166,9 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
         self.network.id
     )
 
-    if snat_rule:
-        self.snat_rule_id = snat_rule['id']
+    assert snat_rule, "Unable to create static NAT"
+
+    self.snat_rule_id = snat_rule['id']
 
 
   def _Delete(self):

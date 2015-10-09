@@ -267,7 +267,6 @@ class CsClient(object):
             cs_args.update({"projectid": project_id})
 
         vpc = self._cs.request(cs_args)
-        logging.debug(vpc)
 
         if vpc and 'vpc' in vpc:
             return vpc['vpc']
@@ -282,8 +281,6 @@ class CsClient(object):
         }
 
         res = self._cs.request(cs_args)
-        logging.debug(res)
-
 
         return res
 
@@ -332,8 +329,6 @@ class CsClient(object):
         }
 
         res = self._cs.request(cs_args)
-        logging.debug(res)
-
         return res
 
     def alloc_public_ip(self, network_id, is_vpc=False):
@@ -409,8 +404,6 @@ class CsClient(object):
             cs_args.update({"projectid": project_id})
 
         res = self._cs.request(cs_args)
-        print res
-
         return res
 
     def get_ssh_keypair(self, name, project_id=None):
