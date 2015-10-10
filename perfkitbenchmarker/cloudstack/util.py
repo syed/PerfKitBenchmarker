@@ -13,7 +13,6 @@
 # limitations under the License.
 """Cloudstack utils"""
 
-import logging
 import urllib
 import os
 from csapi import API
@@ -41,12 +40,10 @@ class CsClient(object):
 
     def __init__(self, url, api_key, secret):
 
-        self._cs = API(
-            api_key,
-            secret,
-            url,
-            logging=True
-        )
+        self._cs = API(api_key,
+                       secret,
+                       url,
+                       logging=False)
 
     def get_zone(self, zone_name):
 
@@ -55,7 +52,6 @@ class CsClient(object):
         }
 
         zones = self._cs.request(cs_args)
-        logging.debug(zones)
 
         if zones and 'zone' in zones:
             for zone in zones['zone']:
@@ -76,7 +72,6 @@ class CsClient(object):
 
 
         templates = self._cs.request(cs_args)
-        logging.debug(templates)
 
         if templates and 'template' in templates:
             for templ in templates['template']:
@@ -92,7 +87,6 @@ class CsClient(object):
         }
 
         service_offerings = self._cs.request(cs_args)
-        logging.debug(service_offerings)
 
         if service_offerings and 'serviceoffering' in service_offerings:
             for servo in service_offerings['serviceoffering']:
@@ -109,7 +103,6 @@ class CsClient(object):
         }
 
         projects = self._cs.request(cs_args)
-        logging.debug(projects)
 
         if projects and 'project' in projects:
             for proj in projects['project']:
@@ -131,7 +124,6 @@ class CsClient(object):
             cs_args.update({"vpcid": vpc_id})
 
         networks = self._cs.request(cs_args)
-        logging.debug(networks)
 
         if networks and 'network' in networks:
             for network in networks['network']:
@@ -147,7 +139,6 @@ class CsClient(object):
         }
 
         nw_offerings = self._cs.request(cs_args)
-        logging.debug(nw_offerings)
 
         if nw_offerings and 'networkoffering' in nw_offerings:
             for nw_off in nw_offerings['networkoffering']:
@@ -166,7 +157,6 @@ class CsClient(object):
             cs_args.update({"projectid": project_id})
 
         vpcs = self._cs.request(cs_args)
-        logging.debug(vpcs)
 
         if vpcs and 'vpc' in vpcs:
             for vpc in vpcs['vpc']:
@@ -182,7 +172,6 @@ class CsClient(object):
         }
 
         vpc_offerings = self._cs.request(cs_args)
-        logging.debug(vpc_offerings)
 
         if vpc_offerings and 'vpcoffering' in vpc_offerings:
             for vpc_off in vpc_offerings['vpcoffering']:
@@ -201,7 +190,6 @@ class CsClient(object):
             cs_args.update({"projectid": project_id})
 
         vms = self._cs.request(cs_args)
-        logging.debug(vms)
 
         if vms and 'virtualmachine' in vms:
             for vm in vms['virtualmachine']:
@@ -237,7 +225,6 @@ class CsClient(object):
             create_vm_args.update({"projectid": project_id})
 
         vm = self._cs.request(create_vm_args)
-        logging.debug(vm)
 
         return vm
 
@@ -314,7 +301,6 @@ class CsClient(object):
             })
 
         nw = self._cs.request(cs_args)
-        logging.debug(nw)
 
         if nw and 'network' in nw:
             return nw['network']

@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Module containing classes related to GCE disks.
+"""Module containing classes related to CloudStack disks.
 
 Disks can be created, deleted, attached to VMs, and detached from VMs.
 Use 'gcloud compute disk-types list' to determine valid disk types.

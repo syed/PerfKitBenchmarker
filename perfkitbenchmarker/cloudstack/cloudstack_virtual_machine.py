@@ -50,11 +50,9 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     self.network = \
         cloudstack_network.CloudStackNetwork.GetNetwork(self.DEFAULT_ZONE)
 
-    self.cs = util.CsClient(
-        FLAGS.CS_API_URL,
-        FLAGS.CS_API_KEY,
-        FLAGS.CS_API_SECRET
-    )
+    self.cs = util.CsClient(FLAGS.CS_API_URL,
+                            FLAGS.CS_API_KEY,
+                            FLAGS.CS_API_SECRET)
 
     self.project_id = None
     if FLAGS.project:
@@ -81,6 +79,7 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     if vm_spec.image is None:
       vm_spec.image = cls.DEFAULT_IMAGE
 
+  @vm_util.Retry(max_retries=3)
   def _CreateDependencies(self):
     """Create VM dependencies."""
 
@@ -135,15 +134,13 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     network_id = self.network.id
 
     vm = None
-    vm = self.cs.create_vm(
-        self.name,
-        self.zone_id,
-        service_offering['id'],
-        template['id'],
-        [network_id],
-        self.ssh_keypair_name,
-        self.project_id
-    )
+    vm = self.cs.create_vm(self.name,
+                           self.zone_id,
+                           service_offering['id'],
+                           template['id'],
+                           [network_id],
+                           self.ssh_keypair_name,
+                           self.project_id)
 
     assert vm, "Unable to create VM"
 
@@ -160,11 +157,9 @@ class CloudStackVirtualMachine(virtual_machine.BaseVirtualMachine):
     self.internal_ip = network_interface['ipaddress']
 
     # Create a Static NAT rule
-    snat_rule = self.cs.enable_static_nat(
-        self.ip_address_id,
-        self.id,
-        self.network.id
-    )
+    snat_rule = self.cs.enable_static_nat(self.ip_address_id,
+                                          self.id,
+                                          self.network.id)
 
     assert snat_rule, "Unable to create static NAT"
 

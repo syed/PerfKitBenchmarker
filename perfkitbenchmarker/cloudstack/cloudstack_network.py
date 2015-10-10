@@ -11,14 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Module containing classes related to GCE VM networking.
-
-The Firewall class provides a way of opening VM ports. The Network class allows
-VMs to communicate via internal ips and isolates PerfKitBenchmarker VMs from
-others in the
-same project. See https://developers.google.com/compute/docs/networking for
-more information about GCE VM networking.
-"""
 
 from perfkitbenchmarker import flags
 from perfkitbenchmarker import network
@@ -50,16 +42,13 @@ class CloudStackFirewall(network.BaseFirewall):
 class CloudStackNetwork(network.BaseNetwork):
   """Object representing a CloudStack Network."""
 
-  @vm_util.Retry(max_retries=3)
   def __init__(self, zone_name):
 
     super(CloudStackNetwork, self).__init__()
 
-    self.cs = util.CsClient(
-        FLAGS.CS_API_URL,
-        FLAGS.CS_API_KEY,
-        FLAGS.CS_API_SECRET
-    )
+    self.cs = util.CsClient(FLAGS.CS_API_URL,
+                            FLAGS.CS_API_KEY,
+                            FLAGS.CS_API_SECRET)
 
     self.project_id = None
 
@@ -92,8 +81,9 @@ class CloudStackNetwork(network.BaseNetwork):
     self.vpc_id = None
 
     if FLAGS.cs_use_vpc:
-        vpc_off = self.cs.get_vpc_offering(FLAGS.cs_vpc_offering)
 
+        assert FLAGS.cs_vpc_offering, "VPC flag should specify the VPC offering"
+        vpc_off = self.cs.get_vpc_offering(FLAGS.cs_vpc_offering)
         assert vpc_off, "Use VPC specified but VPC offering not found"
 
         self.vpc_offering_id = vpc_off['id']
@@ -101,6 +91,7 @@ class CloudStackNetwork(network.BaseNetwork):
 
     self.id = None
 
+  @vm_util.Retry(max_retries=3)
   def Create(self):
     """Creates the actual network."""
 
