@@ -362,6 +362,12 @@ $ ./pkb.py --cloud=DigitalOcean --machine_type=16gb --benchmarks=iperf
 $ ./pkb.py --cloud=OpenStack --benchmarks=iperf --os_auth_url=http://localhost:5000/v2.0/
 ```
 
+## Example run on CloudStack
+
+```bash
+./pkb.py --cloud=CloudStack --benchmarks=ping --cs_network_offering=DefaultNetowrkOffering
+```
+
 ## Example run on Rackspace
 ```
 $ ./pkb.py --cloud=Rackspace --machine_type=general1-2 --benchmarks=iperf
@@ -419,6 +425,7 @@ AWS | us-east-1a | |
 Azure | East US | |
 DigitalOcean | sfo1 | You must use a zone that supports the features 'metadata' (for cloud config) and 'private_networking'.
 OpenStack | nova | |
+CloudStack | QC-1 | |
 Rackspace | IAD | OnMetal machine-types are available only in IAD zone
 
 Example:
